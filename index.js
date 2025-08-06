@@ -1,25 +1,72 @@
-// 1. 주요 클래스 가져오기
-const { Client, Events, GatewayIntentBits } = require('discord.js');
-const { token } = require('./config.json');
+require('dotenv').config();
+const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder } = require('discord.js');
+const axios = require('axios');
 
-// 2. 클라이언트 객체 생성 (Guilds관련, 메시지관련 인텐트 추가)
-const client = new Client({ intents: [
-    GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent,
-  ]});
-
-// 3. 봇이 준비됐을때 한번만(once) 표시할 메시지
-client.once(Events.ClientReady, readyClient => {
-  console.log(`Ready! Logged in as ${readyClient.user.tag}`);
+const client = new Client({
+    intents: [GatewayIntentBits.Guilds]
 });
 
-// 4. 누군가 ping을 작성하면 pong으로 답장한다.
-client.on('messageCreate', (message) => {
-  if(message.content == 'ping'){
-    message.reply('pong');
-  }
-})
+const command = new SlashCommandBuilder()
+    .setName('내부테스터')
+    .setDescription('GitHub Actions를 실행하여 내부 테스트 배포합니다.')
+    .addStringOption(option =>
+        option.setName('version_code')
+            .setDescription('버전 코드')
+            .setRequired(true))
+    .addStringOption(option =>
+        option.setName('version_name')
+            .setDescription('버전 이름')
+            .setRequired(true));
 
-// 5. 시크릿키(토큰)을 통해 봇 로그인 실행
-client.login(token);
+client.once('ready', async () => {
+    console.log(`🟢 Logged in as ${client.user.tag}`);
+
+    // 커맨드 등록
+    const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
+    const appId = (await rest.get(Routes.currentApplication())).id;
+
+    await rest.put(
+        Routes.applicationCommands(appId),
+        { body: [command.toJSON()] }
+    );
+
+    console.log('✅ Slash command registered');
+});
+
+client.on('interactionCreate', async interaction => {
+    if (!interaction.isChatInputCommand()) return;
+    if (interaction.commandName !== '내부테스터') return;
+
+    const versionCode = interaction.options.getString('version_code');
+    const versionName = interaction.options.getString('version_name');
+
+    try {
+        await interaction.reply(`🔄 GitHub Actions 트리거 중...\n버전 코드: ${versionCode}\n버전 이름: ${versionName}`);
+
+        const payload = {
+            ref: process.env.GITHUB_REF,
+            inputs: {
+                version_code: versionCode,
+                version_name: versionName
+            }
+        };
+
+        await axios.post(
+            `https://api.github.com/repos/${process.env.GITHUB_REPO}/actions/workflows/${process.env.GITHUB_WORKFLOW_FILE}/dispatches`,
+            payload,
+            {
+                headers: {
+                    Authorization: `Bearer ${process.env.GITHUB_TOKEN}`,
+                    Accept: 'application/vnd.github.v3+json'
+                }
+            }
+        );
+
+        await interaction.followUp('✅ GitHub Actions 트리거 완료!');
+    } catch (err) {
+        console.error(err.response?.data || err);
+        await interaction.followUp(`❌ 트리거 실패: ${err.response?.data?.message || err.message}`);
+    }
+});
+
+client.login(process.env.DISCORD_TOKEN);

@@ -9,6 +9,18 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "discord.js": "^14.21.0"
-  }
+    "axios": "^1.11.0",
+    "discord.js": "^14.21.0",
+    "dotenv": "^17.2.1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/HamBP/gongju-bot.git"
+  },
+  "keywords": [],
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/HamBP/gongju-bot/issues"
+  },
+  "homepage": "https://github.com/HamBP/gongju-bot#readme"
 }
