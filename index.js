@@ -21,7 +21,7 @@ client.on('interactionCreate', async interaction => {
         await axios.post(
             `https://api.github.com/repos/Nexters/NewsLetter-Android/actions/workflows/internal-release.yml/dispatches`,
             {
-                ref: 'refs/heads/chore/60',
+                ref: 'refs/heads/release',
                 inputs: {
                     version_code: versionCode,
                     version_name: versionName
